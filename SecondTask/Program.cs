@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using System.IO;
+using System.Data.SqlClient;
 
 namespace SecondTask
 {
@@ -74,20 +75,41 @@ namespace SecondTask
     }
     class Program
     {
+        static item a;
         static void Main(string[] args)
         {
+            generateXML();
+            using (SqlConnection cn = new SqlConnection())
+            {
+                cn.ConnectionString = "Data Source=(LocalDB)\\v11.0;AttachDbFilename=" + Environment.CurrentDirectory + "\\SecondTask.mdf;Integrated Security=True;Connect Timeout=30";
+                cn.Open();
+                string wrCommandJob = string.Format("Insert Into Jobs(Time, Description, Phone, UserId, Item) Values(@Time, @Description, @Phone, @UserId, @Item)");
+                SqlCommand cm = new SqlCommand(wrCommandJob, cn);
+                cm.Parameters.AddWithValue("@Time", a.jobs[0].time);
+                cm.Parameters.AddWithValue("@Description", a.jobs[0].description);
+                cm.Parameters.AddWithValue("@Phone", a.jobs[0].phone);
+                cm.Parameters.AddWithValue("@UserId", a.jobs[0].userId);
+                cm.Parameters.AddWithValue("@Item", 10);
+                cm.ExecuteNonQuery();
+                // Работа с базой данных
+                cn.Close();
+            }
             //generateXML();
             //readXML();
             Console.ReadKey();
-
         }
+
+
+
+
+        #region testing codes
         static void generateXML()
         {
-            item a = new item(15, "ASIX", "Z");
-            a.jobs.Add(new job(new DateTime(213123), "hello my darling", "YAHOOOO!", "23423a"));
-            a.jobs.Add(new job(new DateTime(5667), "hello my fri", "aaa!", "23sdf23a"));
+            a = new item(15, "ASIX", "Z");
+            a.jobs.Add(new job(DateTime.Now, "hello my darling", "YAHOOOO!", "23423a"));
+            a.jobs.Add(new job(DateTime.Now, "hello my fri", "aaa!", "23sdf23a"));
             a.jobs.Add(new job(new DateTime(87689), "hello my yee", "sss!", "2a3423a"));
-            a.positions.Add(new position(2342, 234234, 23423, new DateTime(345345)));
+            a.positions.Add(new position(2342, 234234, 23423, new DateTime(34530234)));
             a.positions.Add(new position(34345, 3645, 45646456, new DateTime(213333)));
             a.positions.Add(new position(5646, 5656346, 5567567, new DateTime(533345)));
 
@@ -113,5 +135,6 @@ namespace SecondTask
             formatter test2 = (formatter)ser.Deserialize(st);
             st.Close();
         }
+        #endregion
     }
 }
