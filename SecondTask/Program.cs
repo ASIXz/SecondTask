@@ -66,11 +66,55 @@ namespace SecondTask
         public List<item> items = new List<item>();
         public void writeToXML(string path)
         {
-
+            XmlSerializer serializer = new XmlSerializer(typeof(formatter));
+            StreamWriter itemStream = new StreamWriter(path);
+            serializer.Serialize(itemStream, this);
+            itemStream.Close();
         }
         public void readFromXML(string path)
         {
+            XmlSerializer serializer = new XmlSerializer(typeof(formatter));
+            StreamReader itemStream = new StreamReader(path);
+            items = ((formatter)serializer.Deserialize(itemStream)).items;
+            itemStream.Close();
+        }
+        public void writeToDataBase()
+        {
+            SqlConnection cn = new SqlConnection();
+            cn.ConnectionString = "Data Source=(LocalDB)\\v11.0;AttachDbFilename=" + Environment.CurrentDirectory + "\\SecondTask.mdf;Integrated Security=True;Connect Timeout=30";
+            cn.Open();
+            SqlCommand jobCM = new SqlCommand(string.Format("Insert Into Jobs(Time, Description, Phone, UserId, Item) Values(@Time, @Description, @Phone, @UserId, @Item)"),cn);
+            SqlCommand pointCM = new SqlCommand(string.Format("Insert Into Positions(Latitude, Longitude, Accuracy, Time, Item) Values(@Latitude, @Longitude, @Accuracy, @Time, @Item)"), cn);
+            SqlCommand itemCM = new SqlCommand(string.Format("Insert Into Items(Id, FirstName, SecondName) Values(@Id, @FirstName, @SecondName)"), cn);
+            foreach(item a in items)
+            {
+                itemCM.Parameters.Clear();
+                itemCM.Parameters.AddWithValue("@Id", a.id);
+                itemCM.Parameters.AddWithValue("@FirstName", a.firstName);
+                itemCM.Parameters.AddWithValue("@SecondName", a.lastName);
+                foreach (job j in a.jobs)
+                {
+                    jobCM.Parameters.Clear();
+                    jobCM.Parameters.AddWithValue("@Time", j.time);
+                    jobCM.Parameters.AddWithValue("@Description", j.description);
+                    jobCM.Parameters.AddWithValue("@Phone", j.phone);
+                    jobCM.Parameters.AddWithValue("@UserId", j.userId);
+                    jobCM.Parameters.AddWithValue("@Item", a.id);
+                    jobCM.ExecuteNonQuery();
+                }
+                foreach (position p in a.positions)
+                {
+                    pointCM.Parameters.Clear();
+                    pointCM.Parameters.AddWithValue("@Latitude", p.latitude);
+                    pointCM.Parameters.AddWithValue("@Longitude", p.longitude);
+                    pointCM.Parameters.AddWithValue("@Accuracy", p.accuracy);
+                    pointCM.Parameters.AddWithValue("@Time", p.time);
+                    pointCM.Parameters.AddWithValue("@Item", a.id);
+                    pointCM.ExecuteNonQuery();
+                }
+                itemCM.ExecuteNonQuery();
 
+            }
         }
     }
     class Program
@@ -78,8 +122,11 @@ namespace SecondTask
         static item a;
         static void Main(string[] args)
         {
-            generateXML();
-            using (SqlConnection cn = new SqlConnection())
+            //generateXML();
+            formatter a = new formatter();
+            a.readFromXML("items.xml");
+            a.writeToDataBase();
+            /*using (SqlConnection cn = new SqlConnection())
             {
                 cn.ConnectionString = "Data Source=(LocalDB)\\v11.0;AttachDbFilename=" + Environment.CurrentDirectory + "\\SecondTask.mdf;Integrated Security=True;Connect Timeout=30";
                 cn.Open();
@@ -91,10 +138,9 @@ namespace SecondTask
                 cm.Parameters.AddWithValue("@UserId", a.jobs[0].userId);
                 cm.Parameters.AddWithValue("@Item", 10);
                 cm.ExecuteNonQuery();
-                // Работа с базой данных
+             
                 cn.Close();
-            }
-            //generateXML();
+            }*/
             //readXML();
             Console.ReadKey();
         }
@@ -105,13 +151,13 @@ namespace SecondTask
         #region testing codes
         static void generateXML()
         {
-            a = new item(15, "ASIX", "Z");
+           item a = new item(15, "ASIX", "Z");
             a.jobs.Add(new job(DateTime.Now, "hello my darling", "YAHOOOO!", "23423a"));
             a.jobs.Add(new job(DateTime.Now, "hello my fri", "aaa!", "23sdf23a"));
-            a.jobs.Add(new job(new DateTime(87689), "hello my yee", "sss!", "2a3423a"));
-            a.positions.Add(new position(2342, 234234, 23423, new DateTime(34530234)));
-            a.positions.Add(new position(34345, 3645, 45646456, new DateTime(213333)));
-            a.positions.Add(new position(5646, 5656346, 5567567, new DateTime(533345)));
+            a.jobs.Add(new job(DateTime.Now, "hello my yee", "sss!", "2a3423a"));
+            a.positions.Add(new position(2342, 234234, 23423, DateTime.Now));
+            a.positions.Add(new position(34345, 3645, 45646456, DateTime.Now));
+            a.positions.Add(new position(5646, 5656346, 5567567, DateTime.Now));
 
             formatter test = new formatter();
             test.items.Add(a);
