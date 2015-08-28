@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Xml.Serialization;
 using System.IO;
 using System.Data.SqlClient;
+using System.Diagnostics;
 
 namespace SecondTask
 {
@@ -88,34 +89,100 @@ namespace SecondTask
             SqlCommand itemCM = new SqlCommand(string.Format("Insert Into Items(Id, FirstName, SecondName) Values(@Id, @FirstName, @SecondName)"), cn);
             foreach(item a in items)
             {
-                itemCM.Parameters.Clear();
+                
                 itemCM.Parameters.AddWithValue("@Id", a.id);
                 itemCM.Parameters.AddWithValue("@FirstName", a.firstName);
                 itemCM.Parameters.AddWithValue("@SecondName", a.lastName);
+                try
+                {
+                    itemCM.ExecuteNonQuery();
+                }
+                catch(SqlException)
+                {
+                    Console.WriteLine("Duplication in item id ({0})", a.id);
+                    continue;
+                }
+                itemCM.Parameters.Clear();
                 foreach (job j in a.jobs)
                 {
-                    jobCM.Parameters.Clear();
-                    jobCM.Parameters.AddWithValue("@Time", j.time);
-                    jobCM.Parameters.AddWithValue("@Description", j.description);
-                    jobCM.Parameters.AddWithValue("@Phone", j.phone);
-                    jobCM.Parameters.AddWithValue("@UserId", j.userId);
-                    jobCM.Parameters.AddWithValue("@Item", a.id);
-                    jobCM.ExecuteNonQuery();
+                    //for (int i = 0; i < 1000; i++) {
+                        jobCM.Parameters.AddWithValue("@Time", j.time);
+                        jobCM.Parameters.AddWithValue("@Description", j.description);
+                        jobCM.Parameters.AddWithValue("@Phone", j.phone);
+                        jobCM.Parameters.AddWithValue("@UserId", j.userId);
+                        jobCM.Parameters.AddWithValue("@Item", a.id);
+                        jobCM.ExecuteNonQuery();
+                        jobCM.Parameters.Clear();
+                    //}
                 }
                 foreach (position p in a.positions)
                 {
-                    pointCM.Parameters.Clear();
+                    
+                   // for (int i = 0; i < 1000; i++) {
                     pointCM.Parameters.AddWithValue("@Latitude", p.latitude);
                     pointCM.Parameters.AddWithValue("@Longitude", p.longitude);
                     pointCM.Parameters.AddWithValue("@Accuracy", p.accuracy);
                     pointCM.Parameters.AddWithValue("@Time", p.time);
                     pointCM.Parameters.AddWithValue("@Item", a.id);
                     pointCM.ExecuteNonQuery();
+                    pointCM.Parameters.Clear();
+                 //   }
                 }
-                itemCM.ExecuteNonQuery();
-
             }
         }
+        public void readFromDataBase()
+        {
+            SqlConnection cn = new SqlConnection();
+            cn.ConnectionString = "Data Source=(LocalDB)\\v11.0;AttachDbFilename=" + Environment.CurrentDirectory + "\\SecondTask.mdf;Integrated Security=True;Connect Timeout=30";
+            cn.Open();
+
+
+            Stopwatch a = new Stopwatch();
+            /*a.Start();
+            for (int i = 0; i < 10; i++ )
+            {
+
+                SqlCommand jobCM = new SqlCommand(string.Format("SELECT * FROM Jobs ORDER BY Item"), cn);
+                SqlDataReader reader = jobCM.ExecuteReader();
+
+                reader.Close();
+                SqlCommand pointCM = new SqlCommand(string.Format("SELECT * FROM Positions ORDER BY Item"), cn);
+                reader = pointCM.ExecuteReader();
+
+                reader.Close();
+                SqlCommand itemCM = new SqlCommand(string.Format("SELECT * FROM Items ORDER BY Id"), cn);
+                reader = itemCM.ExecuteReader();
+
+                reader.Close();
+            }
+            a.Stop();*/
+            a.Start();
+             for (int i = 0; i < 10; i++)
+             {
+
+                // SqlCommand jobCM = new SqlCommand(string.Format("SELECT * FROM Positions INNER JOIN (Items INNER JOIN Jobs ON Jobs.Item = Items.Id) ON Positions.Item = Items.Id ORDER BY Id"), cn);
+                 SqlCommand jobCM = new SqlCommand(string.Format(@"SELECT *
+FROM Jobs INNER JOIN Items
+   ON Jobs.Item = Items.Id JOIN Positions
+   ON Positions.Item = Items.Id
+ORDER BY ID ASC"), cn);
+                 SqlDataReader reader = jobCM.ExecuteReader();
+
+                 reader.Close();
+             }
+             a.Stop();
+
+
+
+            Console.WriteLine(a.Elapsed);
+
+            cn.Close();
+        }
+        public void clearBase()
+        {
+        
+        }
+
     }
     class Program
     {
@@ -123,9 +190,17 @@ namespace SecondTask
         static void Main(string[] args)
         {
             //generateXML();
-            formatter a = new formatter();
+           /* formatter a = new formatter();
             a.readFromXML("items.xml");
-            a.writeToDataBase();
+            a.writeToDataBase();*/
+
+            formatter a = new formatter();
+            a.readFromDataBase();
+            
+
+ 
+
+
             /*using (SqlConnection cn = new SqlConnection())
             {
                 cn.ConnectionString = "Data Source=(LocalDB)\\v11.0;AttachDbFilename=" + Environment.CurrentDirectory + "\\SecondTask.mdf;Integrated Security=True;Connect Timeout=30";
