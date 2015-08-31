@@ -65,6 +65,13 @@ namespace SecondTask
     {
         [XmlElement("item")]
         public List<item> items = new List<item>();
+        [XmlIgnore]
+        SqlConnection cn = new SqlConnection("Data Source=(LocalDB)\\v11.0;AttachDbFilename=" + Environment.CurrentDirectory + "\\SecondTask.mdf;Integrated Security=True;Connect Timeout=30");
+
+        public void close()
+        {
+            cn.Close();
+        }
         public void writeToXML(string path)
         {
             XmlSerializer serializer = new XmlSerializer(typeof(formatter));
@@ -81,9 +88,6 @@ namespace SecondTask
         }
         public void writeToDataBase()
         {
-            SqlConnection cn = new SqlConnection();
-            cn.ConnectionString = "Data Source=(LocalDB)\\v11.0;AttachDbFilename=" + Environment.CurrentDirectory + "\\SecondTask.mdf;Integrated Security=True;Connect Timeout=30";
-            cn.Open();
             SqlCommand jobCM = new SqlCommand(string.Format("Insert Into Jobs(Time, Description, Phone, UserId, Item) Values(@Time, @Description, @Phone, @UserId, @Item)"),cn);
             SqlCommand pointCM = new SqlCommand(string.Format("Insert Into Positions(Latitude, Longitude, Accuracy, Time, Item) Values(@Latitude, @Longitude, @Accuracy, @Time, @Item)"), cn);
             SqlCommand itemCM = new SqlCommand(string.Format("Insert Into Items(Id, FirstName, SecondName) Values(@Id, @FirstName, @SecondName)"), cn);
@@ -132,94 +136,171 @@ namespace SecondTask
         }
         public void readFromDataBase()
         {
-            SqlConnection cn = new SqlConnection();
-            cn.ConnectionString = "Data Source=(LocalDB)\\v11.0;AttachDbFilename=" + Environment.CurrentDirectory + "\\SecondTask.mdf;Integrated Security=True;Connect Timeout=30";
-            cn.Open();
-
-
-            Stopwatch a = new Stopwatch();
-            /*a.Start();
-            for (int i = 0; i < 10; i++ )
+            // Stopwatch a = new Stopwatch();
+            //a.Start();
+            items.Clear();
+            SqlCommand itemCM = new SqlCommand(string.Format("SELECT * FROM Items ORDER BY Id"), cn);
+            SqlDataReader reader = itemCM.ExecuteReader();
+            while (reader.Read())
             {
-
-                SqlCommand jobCM = new SqlCommand(string.Format("SELECT * FROM Jobs ORDER BY Item"), cn);
-                SqlDataReader reader = jobCM.ExecuteReader();
-
-                reader.Close();
-                SqlCommand pointCM = new SqlCommand(string.Format("SELECT * FROM Positions ORDER BY Item"), cn);
-                reader = pointCM.ExecuteReader();
-
-                reader.Close();
-                SqlCommand itemCM = new SqlCommand(string.Format("SELECT * FROM Items ORDER BY Id"), cn);
-                reader = itemCM.ExecuteReader();
-
-                reader.Close();
+                item newItem = new item();
+                newItem.id = reader.GetInt32(0);
+                newItem.firstName = reader.GetString(1);
+                newItem.lastName = reader.GetString(2);
+                items.Add(newItem);
             }
-            a.Stop();*/
-            a.Start();
-             for (int i = 0; i < 10; i++)
-             {
+            reader.Close();
 
-                // SqlCommand jobCM = new SqlCommand(string.Format("SELECT * FROM Positions INNER JOIN (Items INNER JOIN Jobs ON Jobs.Item = Items.Id) ON Positions.Item = Items.Id ORDER BY Id"), cn);
-                 SqlCommand jobCM = new SqlCommand(string.Format(@"SELECT *
-FROM Jobs INNER JOIN Items
-   ON Jobs.Item = Items.Id JOIN Positions
-   ON Positions.Item = Items.Id
-ORDER BY ID ASC"), cn);
-                 SqlDataReader reader = jobCM.ExecuteReader();
+            int i;
+            int lastid;
 
-                 reader.Close();
-             }
-             a.Stop();
+            SqlCommand jobCM = new SqlCommand(string.Format("SELECT * FROM Jobs ORDER BY Item"), cn);
+            reader = jobCM.ExecuteReader();
+            lastid = i = -1;
+            while (reader.Read())
+            {
+                int k = reader.GetInt32(4);
+                if (lastid != k)
+                {
+                    do ++i;
+                    while (k != items[i].id);
+                    lastid = reader.GetInt32(4);
+                }
+                items[i].jobs.Add(new job(reader.GetDateTime(0), reader.GetString(1), reader.GetString(2), reader.GetString(3)));
+            }
+            reader.Close();
 
+            SqlCommand pointCM = new SqlCommand(string.Format("SELECT * FROM Positions ORDER BY Item"), cn);
+            reader = pointCM.ExecuteReader();
+            lastid = i = -1;
+            while (reader.Read())
+            {
+                if (lastid != reader.GetInt32(4))
+                {
+                    do i++;
+                    while (reader.GetInt32(4) != items[i].id);
+                    lastid = reader.GetInt32(4);
+                }
+                items[i].positions.Add(new position(reader.GetInt64(0),reader.GetInt64(1),reader.GetInt32(2),reader.GetDateTime(3)));
+            }
+            reader.Close();
 
+            // a.Stop();
+            /* a.Start();
+              for (int i = 0; i < 10; i++)
+              {
 
-            Console.WriteLine(a.Elapsed);
+                 // SqlCommand jobCM = new SqlCommand(string.Format("SELECT * FROM Positions INNER JOIN (Items INNER JOIN Jobs ON Jobs.Item = Items.Id) ON Positions.Item = Items.Id ORDER BY Id"), cn);
+                  SqlCommand jobCM = new SqlCommand(string.Format(@"SELECT *
+ FROM Jobs INNER JOIN Items
+    ON Jobs.Item = Items.Id JOIN Positions
+    ON Positions.Item = Items.Id
+ ORDER BY ID ASC"), cn);
+                  SqlDataReader reader = jobCM.ExecuteReader();
 
-            cn.Close();
+                  reader.Close();
+              }
+              a.Stop();*/
         }
         public void clearBase()
         {
-        
+            SqlCommand jobCM = new SqlCommand(string.Format("Delete From Jobs"),cn);
+            SqlCommand pointCM = new SqlCommand(string.Format("Delete From Positions"), cn);
+            SqlCommand itemCM = new SqlCommand(string.Format("Delete From Items"), cn);
+            jobCM.ExecuteNonQuery();
+            pointCM.ExecuteNonQuery();
+            itemCM.ExecuteNonQuery();
         }
+        private static string generateRandomString()
+        {
+            Random r = new Random();
+            int maxChars = r.Next(1, 30);
+            StringBuilder stg = new StringBuilder(maxChars);
+            for (int i = 0; i < maxChars-1; i++)
+            {
+                stg.Append((char)r.Next((int)'a', (int)'z'));
+            }
+            return stg.ToString();
+        }
+        public void generateRandomList(int maxItems, int maxJobs, int maxPoints)
+        {
+            items.Clear();
+            Random r = new Random();
+            int maxi = r.Next(1, maxItems);
+            for (int i = 0; i < maxi; i++)
+            {
+                item newItem = new item();
+                newItem.id = r.Next();
+                newItem.firstName = generateRandomString();
+                newItem.lastName = generateRandomString();
 
+                int maxj = r.Next(1, maxJobs);
+                for (int j = 0; j < maxj; j++)
+                {
+                    newItem.jobs.Add(new job(DateTime.Now,generateRandomString(),generateRandomString(),generateRandomString()));
+                }
+
+                int maxp = r.Next(1, maxPoints);
+                for (int p = 0; p < maxp; p++)
+                {
+                    newItem.positions.Add(new position(r.Next(), r.Next(), r.Next(), DateTime.Now));
+                }
+                items.Add(newItem);
+            }
+        }
+        public formatter()
+        {
+            cn.Open();
+        }
     }
     class Program
     {
         static item a;
         static void Main(string[] args)
         {
-            //generateXML();
-           /* formatter a = new formatter();
-            a.readFromXML("items.xml");
-            a.writeToDataBase();*/
-
             formatter a = new formatter();
-            a.readFromDataBase();
-            
-
- 
-
-
-            /*using (SqlConnection cn = new SqlConnection())
+            Console.WriteLine("Русиш консоле активировался!\nКричать Help чтобы получить от спящего соседа.");
+            string command;
+            do
             {
-                cn.ConnectionString = "Data Source=(LocalDB)\\v11.0;AttachDbFilename=" + Environment.CurrentDirectory + "\\SecondTask.mdf;Integrated Security=True;Connect Timeout=30";
-                cn.Open();
-                string wrCommandJob = string.Format("Insert Into Jobs(Time, Description, Phone, UserId, Item) Values(@Time, @Description, @Phone, @UserId, @Item)");
-                SqlCommand cm = new SqlCommand(wrCommandJob, cn);
-                cm.Parameters.AddWithValue("@Time", a.jobs[0].time);
-                cm.Parameters.AddWithValue("@Description", a.jobs[0].description);
-                cm.Parameters.AddWithValue("@Phone", a.jobs[0].phone);
-                cm.Parameters.AddWithValue("@UserId", a.jobs[0].userId);
-                cm.Parameters.AddWithValue("@Item", 10);
-                cm.ExecuteNonQuery();
-             
-                cn.Close();
-            }*/
-            //readXML();
+                command = Console.ReadLine();
+                command.ToLower();
+                switch (command)
+                {
+                    case "generate":
+                        a.generateRandomList(10, 100, 100);
+                        break;
+                    case "clear":
+                        a.clearBase();
+                        break;
+                    case "exit":
+                        break;
+                    case "to xml":
+                        a.writeToXML("items.xml");
+                        break;
+                    case "to base":
+                        a.writeToDataBase();
+                        break;
+                    case "from xml":
+                        a.readFromXML("items.xml");
+                        break;
+                    case "from base":
+                        a.readFromDataBase();
+                        break;
+                    case "help":
+                        Console.WriteLine("generate\nclear\nexit\nto xml\nto base\nfrom xml\nfrom base\nhelp");
+                        break;
+                    default:
+                        Console.WriteLine("Чё?");
+                        break;
+                }
+            }
+            while (command != "exit");
+
+            a.close();
+            Console.WriteLine("END, press key to exit.");
             Console.ReadKey();
         }
-
 
 
 
