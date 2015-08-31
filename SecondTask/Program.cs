@@ -136,11 +136,9 @@ namespace SecondTask
         }
         public void readFromDataBase()
         {
-            // Stopwatch a = new Stopwatch();
-            //a.Start();
             items.Clear();
-            SqlCommand itemCM = new SqlCommand(string.Format("SELECT * FROM Items ORDER BY Id"), cn);
-            SqlDataReader reader = itemCM.ExecuteReader();
+            SqlDataReader reader = new SqlCommand(string.Format("SELECT * FROM Items ORDER BY Id;SELECT * FROM Jobs ORDER BY Item;SELECT * FROM Jobs ORDER BY Item;"), cn).ExecuteReader();
+            //читаем лист items
             while (reader.Read())
             {
                 item newItem = new item();
@@ -149,13 +147,12 @@ namespace SecondTask
                 newItem.lastName = reader.GetString(2);
                 items.Add(newItem);
             }
-            reader.Close();
 
             int i;
             int lastid;
 
-            SqlCommand jobCM = new SqlCommand(string.Format("SELECT * FROM Jobs ORDER BY Item"), cn);
-            reader = jobCM.ExecuteReader();
+            //читаем лист jobs
+            reader.NextResult();
             lastid = i = -1;
             while (reader.Read())
             {
@@ -168,10 +165,10 @@ namespace SecondTask
                 }
                 items[i].jobs.Add(new job(reader.GetDateTime(0), reader.GetString(1), reader.GetString(2), reader.GetString(3)));
             }
-            reader.Close();
 
-            SqlCommand pointCM = new SqlCommand(string.Format("SELECT * FROM Positions ORDER BY Item"), cn);
-            reader = pointCM.ExecuteReader();
+
+            //читаем лист positions
+            reader.NextResult();
             lastid = i = -1;
             while (reader.Read())
             {
@@ -184,23 +181,6 @@ namespace SecondTask
                 items[i].positions.Add(new position(reader.GetInt64(0),reader.GetInt64(1),reader.GetInt32(2),reader.GetDateTime(3)));
             }
             reader.Close();
-
-            // a.Stop();
-            /* a.Start();
-              for (int i = 0; i < 10; i++)
-              {
-
-                 // SqlCommand jobCM = new SqlCommand(string.Format("SELECT * FROM Positions INNER JOIN (Items INNER JOIN Jobs ON Jobs.Item = Items.Id) ON Positions.Item = Items.Id ORDER BY Id"), cn);
-                  SqlCommand jobCM = new SqlCommand(string.Format(@"SELECT *
- FROM Jobs INNER JOIN Items
-    ON Jobs.Item = Items.Id JOIN Positions
-    ON Positions.Item = Items.Id
- ORDER BY ID ASC"), cn);
-                  SqlDataReader reader = jobCM.ExecuteReader();
-
-                  reader.Close();
-              }
-              a.Stop();*/
         }
         public void clearBase()
         {
@@ -216,7 +196,7 @@ namespace SecondTask
             Random r = new Random();
             int maxChars = r.Next(1, 30);
             StringBuilder stg = new StringBuilder(maxChars);
-            for (int i = 0; i < maxChars-1; i++)
+            for (int i = 0; i < maxChars; i++)
             {
                 stg.Append((char)r.Next((int)'a', (int)'z'));
             }
@@ -290,6 +270,9 @@ namespace SecondTask
                     case "help":
                         Console.WriteLine("generate\nclear\nexit\nto xml\nto base\nfrom xml\nfrom base\nhelp");
                         break;
+                    case "cd1":
+                        cd1();
+                        break;
                     default:
                         Console.WriteLine("Чё?");
                         break;
@@ -297,46 +280,18 @@ namespace SecondTask
             }
             while (command != "exit");
 
+
+
+
+
+
             a.close();
             Console.WriteLine("END, press key to exit.");
             Console.ReadKey();
         }
-
-
-
-        #region testing codes
-        static void generateXML()
+        public void cd1()
         {
-           item a = new item(15, "ASIX", "Z");
-            a.jobs.Add(new job(DateTime.Now, "hello my darling", "YAHOOOO!", "23423a"));
-            a.jobs.Add(new job(DateTime.Now, "hello my fri", "aaa!", "23sdf23a"));
-            a.jobs.Add(new job(DateTime.Now, "hello my yee", "sss!", "2a3423a"));
-            a.positions.Add(new position(2342, 234234, 23423, DateTime.Now));
-            a.positions.Add(new position(34345, 3645, 45646456, DateTime.Now));
-            a.positions.Add(new position(5646, 5656346, 5567567, DateTime.Now));
 
-            formatter test = new formatter();
-            test.items.Add(a);
-            XmlSerializer serializer = new XmlSerializer(typeof(item));
-            FileStream itemStream = new FileStream("itemFile.xml", FileMode.OpenOrCreate, FileAccess.ReadWrite);
-            serializer.Serialize(itemStream, a);
-            item b;
-            itemStream.Close();
-            itemStream = new FileStream("itemFile.xml", FileMode.Open, FileAccess.Read);
-            b = (item)serializer.Deserialize(itemStream);
-            b.id = 20;
-            test.items.Add(b);
-            StreamWriter itemsStream = new StreamWriter("items.xml");
-            serializer = new XmlSerializer(typeof(formatter));
-            serializer.Serialize(itemsStream, test);
         }
-        static void readXML()
-        {
-            StreamReader st = new StreamReader("items.xml");
-            XmlSerializer ser = new XmlSerializer(typeof(formatter));
-            formatter test2 = (formatter)ser.Deserialize(st);
-            st.Close();
-        }
-        #endregion
     }
 }
